@@ -1,0 +1,14 @@
+/*
+[DOM]
+#smr_wrapper
+    #container_submenus_1 .container-submenus .smr_submenus
+        [.submenu] .smr_submenu .level{d>0}
+    #container_submenus_{n}
+*/
+
+/*#smr_wrapper { position: absolute; top: 0px; left:0px; width: 100%; z-index:2222;}*/
+.smr_submenus { position: absolute; top: 100%; left: auto; right: auto; width: 100%; }
+.smr_submenus > .smr_submenu { display: block; width: 100%; overflow: visible; }
+.smr_submenus .smr_submenu li { display: inline-block; }
+.smr_submenus .smr_submenu { position: absolute; width: 100%; left: 0px; text-align: center; display: none; }
+.smr_submenu_original { display: none !important; }
