@@ -20,11 +20,26 @@ event type : onhover | onclick | (|both|) | none
 aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
 */
 
+/*
+options:
+    submenu selector : string
+    event type : enum(hover|click|both|none)
+    hover delay : int
+    add depth classes : bool
+    complete : function(container)
+
+options:
+    ^ inherit above options
+    containerCreationCode : jquery string
+*/
+
 (function($) {
 
     /* Constants */
     var SUBMENU_ORIGINAL_CLASS = "smr_submenu_original";
-    var SUBMENU_CLONE_CLASS = "smr_submenu"
+    var SUBMENU_CLONE_CLASS = "submenu smr_submenu"
+    var SHOWN_CLASS = "shown smr_shown";
+    var CLICK_SHOWN_CLASS = "shown-by-click";
 
     /* Helpers */
     var _wrapper = false;
@@ -44,9 +59,15 @@ aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
     };
 
     var _addDepthClasses = function($collection, submenuSelector) {
-        alert("SubmenuRows: Depth Classes are not implemented yet!"); //TODO
+        $collection.addClass('depth-1');
+        $collection.find(submenuSelector).each(function() {
+            var $this = $(this);
+            var depth = 1 + $this.parents(submenuSelector).length;
+            $this.addClass('depth-'+depth);
+        });
     };
 
+    //:topmost pseudo selector
     $.extend(jQuery.expr[':'], {
         topmost: function (element, index, match, alreadyMatched) {
             for (var i = 0; i < alreadyMatched.length; i++) {
@@ -59,6 +80,86 @@ aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
     });
 
 
+    var showSubmenu = function(node) {
+        $(node).addClass(SHOWN_CLASS);
+    };
+    var hideSubmenu = function(node) {
+        $(node).removeClass(SHOWN_CLASS);
+    };
+
+    var setClickShown = function(node, flag) {
+        if (flag) {
+            $(node).removeClass(CLICK_SHOWN_CLASS);
+        } else {
+            $(node).addClass(CLICK_SHOWN_CLASS);
+        }
+    }
+    var isClickShown = function(node) {
+        return $(node).hasClass(CLICK_SHOWN_CLASS);
+    }
+
+    var _attachEvents = function($triggers, target, settings, hoverOutDelay) {
+        if (typeof hoverOutDelay == "undefined")
+            hoverOutDelay = settings.hoverOutDelay;
+
+        // hover
+        if (settings.eventType == "hover" || settings.eventType == "both") {
+            var hoverTimeout = -1;
+
+            var hoverIn = function(event) {
+                clearTimeout(hoverTimeout);
+                hoverTimeout = -1;
+
+                if (settings.onShow(event, target) === false)
+                    return;
+
+                showSubmenu(target);
+            };
+            var hoverOut = function(event) {
+                var doHide = function() {
+                    if (isClickShown(target))
+                        return; //don't actually hide
+
+                    if (settings.onHide(event, target) === false)
+                        return;
+
+                    hideSubmenu(target);
+                };
+
+                // if (hoverOutDelay > 0) {
+                    hoverTimeout = setTimeout(doHide, hoverOutDelay);
+                // } else {
+                //     doHide();
+                // }
+            };
+
+            $triggers.hover(hoverIn, hoverOut);
+            $(target).hover(hoverIn, hoverOut);
+        }
+
+        // click
+        if (settings.eventType == "click" || settings.eventType == "both") {
+            $triggers.click(function(event) {
+                if (isClickShown(target)) {
+                    setClickShown(target, false);
+
+                    if (settings.onHide(event, target) === false)
+                        return;
+
+                    hideSubmenu(target);
+                } else {
+                    setClickShown(target, true);
+
+                    if (settings.onHide(event, target) === false)
+                        return;
+
+                    showSubmenu(target);
+                }
+            });
+        }
+    };
+
+
     /* Actual functionality */
 
     $.fn.collectSubmenus = function(sourceNodes, options) {
@@ -68,7 +169,13 @@ aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
         //defaults
         var settings = $.extend({
             submenuSelector: "ul",
-            addDepthClasses: false
+            eventType: "both",
+            hoverOutDelay: 0,
+            deepSubmenusHoverOutDelay: 0,
+            addDepthClasses: true,
+            onPrepare: function(container) { /* do nothing */ },
+            onShow: function(event, target) { return true; },
+            onHide: function(event, target) { return true; }
         }, options );
 
         //shorthands
@@ -92,16 +199,33 @@ aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
 
             // Link Original and Clone
             $submenusOriginal.each(function(index, element){
-                element.smr_target = $submenusClone[index]
+                var target = $submenusClone[index];
+
+                // Pointer links
+                element.smr_target = target;
                 $submenusClone[index].smr_original = element;
+
+                // Attach Event Listeners
+                _attachEvents($(element).parent(), target, settings);
             });
+            
+            // Attach events on deeper submenus
+            $deepSubmenus = $submenusClone.find(submenuSelector);
+
+            $deepSubmenus.each(function(index, element) {
+                _attachEvents($(element).parent(), element, settings, settings.deepSubmenusHoverOutDelay);
+            });
+
 
             // Mark with classes
             $submenusOriginal.addClass(SUBMENU_ORIGINAL_CLASS);
             $submenusClone.addClass(SUBMENU_CLONE_CLASS);
-            $submenusClone.find(submenuSelector).addClass(SUBMENU_CLONE_CLASS);
-            if (settings._addDepthClasses)
+            $deepSubmenus.addClass(SUBMENU_CLONE_CLASS);
+            if (settings.addDepthClasses)
                 _addDepthClasses($submenusClone, submenuSelector);
+
+            // Call "onPrepare" user callback function
+            settings.onPrepare($container.get(0));
 
             // Advance i (cap at $containers.length)
             i = Math.min(i+1, $containers.length-1);
@@ -109,11 +233,19 @@ aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
     };
  
     $.fn.extractSubmenus = function(options) {
+        //defaults
+        var settings = $.extend({
+            containerCreationCode: "<div id='container_submenus_%index%' class='smr_submenus container-submenus' />"
+        }, options );
+
+
         var $root = getSMRWrapper();
         var extracted = [];
 
         this.each(function(index) {
-            var $container = $("<div id='container_submenus_"+index+"' class='smr_submenus container-submenus' />");
+            var creationCode = settings.containerCreationCode;
+            creationCode = creationCode.replace(/%i(ndex)?%?/ig, index);
+            var $container = $(creationCode);
 
             $root.append($container);
             extracted = extracted.concat($container.get());
@@ -125,6 +257,27 @@ aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
 }(jQuery));
 
 
-// (function($) {
-//     $("nav ul:topmost").extractSubmenus();
-// }(jQuery));
+(function($) {
+    $("nav ul:topmost").extractSubmenus({
+        onPrepare: function(container) {
+            $(container).appendTo("#header");
+            container.id = "header_nav_submenus";
+
+            $("#header").mouseleave(function() {
+                $(container).find(".submenu:topmost").slideUp();
+                console.log("close");
+            });
+        },
+        onShow: function(event, target) {
+            $(target).slideDown();
+            return false;
+        },
+        onHide: function(event, target) {
+            if ($(target).is(".submenu .submenu")) {
+                console.log("hide");
+                $(target).slideUp();
+            }
+            return false;
+        }
+    });
+}(jQuery));
