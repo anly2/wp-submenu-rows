@@ -41,7 +41,7 @@ class WPSubmenuRows {
 
     	wp_deregister_script("jquery");
     	wp_enqueue_script("jquery", $this->dir . "js/jquery-1.7.1.min.js", array(), "1.7.1");
-    	wp_enqueue_script("submenu_rows", $this->dir . "js/submenu-rows.jquery.js", array("jquery"), false, true);
+    	wp_enqueue_script("submenu_rows", $this->dir . "js/jquery.submenu-rows.js", array("jquery"), false, true);
     	wp_enqueue_style("submenu_rows", $this->dir . "css/style.css");
     }
 }

@@ -257,6 +257,8 @@ options:
 }(jQuery));
 
 
+/* FIXME !!! NOT SUPPOSED TO BE HERE !!!*/
+//dynamically generated
 (function($) {
     $("nav ul:topmost").extractSubmenus({
         onPrepare: function(container) {
