@@ -35,11 +35,31 @@ options:
 
 (function($) {
 
+    /* Defaults */
+    var COLLECT_DEFAULT_OPTIONS = {
+        submenuSelector: "ul",
+        submenuClass: "",
+        shownClass: "",
+        eventType: "both",
+        hoverOutDelay: 0,
+        deepSubmenusHoverOutDelay: 0,
+        addDepthClasses: true,
+        onPrepare: function(cloneContainer, originalNode) { /* do nothing */ },
+        onShow: function(event, target) { return true; },
+        onHide: function(event, target) { return true; }
+    };
+    var EXTRACT_DEFAULT_OPTIONS = {
+        containerCreationCode: "<div id='container_submenus_%index%' class='container-submenus' />" /* %i or %i(ndex)?%? */
+    };
+    //$.extend(EXTRACT_DEFAULT_OPTIONS , COLLECT_DEFAULT_OPTIONS); //not necessary
+
+
     /* Constants */
     var SUBMENU_ORIGINAL_CLASS = "smr_submenu_original";
-    var SUBMENU_CLONE_CLASS = "submenu smr_submenu"
-    var SHOWN_CLASS = "shown smr_shown";
-    var CLICK_SHOWN_CLASS = "shown-by-click";
+    var SUBMENU_CLONE_CONTAINER_CLASS = "smr_submenus"; //ends with an "s"
+    var SUBMENU_CLONE_CLASS = "smr_submenu"; // singular
+    var SHOWN_CLASS = "smr_shown";
+    var CLICK_SHOWN_CLASS = "smr_shown_by_click";
 
     /* Helpers */
     var _wrapper = false;
@@ -80,11 +100,11 @@ options:
     });
 
 
-    var showSubmenu = function(node) {
-        $(node).addClass(SHOWN_CLASS);
+    var showSubmenu = function(node, shownClass) {
+        $(node).addClass(SHOWN_CLASS).addClass(shownClass);
     };
-    var hideSubmenu = function(node) {
-        $(node).removeClass(SHOWN_CLASS);
+    var hideSubmenu = function(node, shownClass) {
+        $(node).removeClass(SHOWN_CLASS).removeClass(shownClass);
     };
 
     var setClickShown = function(node, flag) {
@@ -113,7 +133,7 @@ options:
                 if (settings.onShow(event, target) === false)
                     return;
 
-                showSubmenu(target);
+                showSubmenu(target, settings.shownClass);
             };
             var hoverOut = function(event) {
                 var doHide = function() {
@@ -123,14 +143,10 @@ options:
                     if (settings.onHide(event, target) === false)
                         return;
 
-                    hideSubmenu(target);
+                    hideSubmenu(target, settings.shownClass);
                 };
 
-                // if (hoverOutDelay > 0) {
-                    hoverTimeout = setTimeout(doHide, hoverOutDelay);
-                // } else {
-                //     doHide();
-                // }
+                hoverTimeout = setTimeout(doHide, hoverOutDelay);
             };
 
             $triggers.hover(hoverIn, hoverOut);
@@ -167,16 +183,7 @@ options:
             return this;
 
         //defaults
-        var settings = $.extend({
-            submenuSelector: "ul",
-            eventType: "both",
-            hoverOutDelay: 0,
-            deepSubmenusHoverOutDelay: 0,
-            addDepthClasses: true,
-            onPrepare: function(container, original) { /* do nothing */ },
-            onShow: function(event, target) { return true; },
-            onHide: function(event, target) { return true; }
-        }, options );
+        var settings = $.extend(COLLECT_DEFAULT_OPTIONS, options);
 
         //shorthands
         var submenuSelector = settings.submenuSelector;
@@ -187,6 +194,7 @@ options:
         var $containers = this;
 
         $(sourceNodes).each(function() {
+            // Variables
             var $source = $(this);
             var $container = $containers.eq(i);
 
@@ -219,10 +227,13 @@ options:
 
             // Mark with classes
             $submenusOriginal.addClass(SUBMENU_ORIGINAL_CLASS);
-            $submenusClone.addClass(SUBMENU_CLONE_CLASS);
-            $deepSubmenus.addClass(SUBMENU_CLONE_CLASS);
-            if (settings.addDepthClasses)
+            $submenusClone.addClass(SUBMENU_CLONE_CLASS).addClass(settings.submenuClass);
+            $deepSubmenus.addClass(SUBMENU_CLONE_CLASS).addClass(settings.submenuClass);
+
+            if (settings.addDepthClasses) {
                 _addDepthClasses($submenusClone, submenuSelector);
+            }
+
 
             // Call "onPrepare" user callback function
             settings.onPrepare($container.get(0), $source.get(0));
@@ -234,23 +245,28 @@ options:
  
     $.fn.extractSubmenus = function(options) {
         //defaults
-        var settings = $.extend({
-            containerCreationCode: "<div id='container_submenus_%index%' class='smr_submenus container-submenus' />"
-        }, options );
+        var settings = $.extend(EXTRACT_DEFAULT_OPTIONS, options);
 
-
+        //vars
         var $root = getSMRWrapper();
         var extracted = [];
 
+        //create containers
         this.each(function(index) {
+            //handle creation code
             var creationCode = settings.containerCreationCode;
             creationCode = creationCode.replace(/%i(ndex)?%?/ig, index);
-            var $container = $(creationCode);
 
+            //create
+            var $container = $(creationCode);
+            $container.addClass(SUBMENU_CLONE_CONTAINER_CLASS);
+
+            //append n register
             $root.append($container);
             extracted = extracted.concat($container.get());
         });
 
+        //do the actual work
         return $(extracted).collectSubmenus(this, options);
     };
  
