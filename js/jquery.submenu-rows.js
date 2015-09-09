@@ -173,7 +173,7 @@ options:
             hoverOutDelay: 0,
             deepSubmenusHoverOutDelay: 0,
             addDepthClasses: true,
-            onPrepare: function(container) { /* do nothing */ },
+            onPrepare: function(container, original) { /* do nothing */ },
             onShow: function(event, target) { return true; },
             onHide: function(event, target) { return true; }
         }, options );
@@ -225,7 +225,7 @@ options:
                 _addDepthClasses($submenusClone, submenuSelector);
 
             // Call "onPrepare" user callback function
-            settings.onPrepare($container.get(0));
+            settings.onPrepare($container.get(0), $source.get(0));
 
             // Advance i (cap at $containers.length)
             i = Math.min(i+1, $containers.length-1);
