@@ -44,7 +44,7 @@ options:
         eventType: "both",
         hoverOutDelay: 0,
         deepSubmenusHoverOutDelay: 0,
-        addDepthClasses: true,
+        addDepthClasses: false,
         onPrepare: function(cloneContainer, originalNode) { /* do nothing */ },
         onShow: function(event, target) { return true; },
         onHide: function(event, target) { return true; }
