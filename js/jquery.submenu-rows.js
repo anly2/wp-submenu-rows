@@ -250,15 +250,15 @@
  
     /**
      * Given a jQuery collection, for each element, find all the elements that match the `submenuSelector`, make a clone of them and append the clone to a newly created container element.
-     * For details on the "cloning" part, please see $.fn.collectSubmenus .
+     * For details on the "cloning" part, please see `$.fn.collectSubmenus` .
      * This function only creates containers for the clones and calls $.fn.collectSubmenus to do the actual work.
      * A clone container will be created for each element in the jQuery collection.
      *
-     * Please see $.fn.collectSubmenus !!!
+     * Please see `$.fn.collectSubmenus` !!!
      * 
-     * @param  {object} [options] - Options to use. The object is passed to $.fn.collectSubmenus . So include all options you want to use there.
-     * @param  {jquery string} [options.containerCreationCode] - the jQuery string to use when creation the container for submenu clones
-     * @return {jquery object} - a jQuery collection of the created containers with submenu clones appended
+     * @param  {object} [options] - Options to use. The object is passed to `$.fn.collectSubmenus`. So include all options you want to use there.
+     * @param  {jQuery string} [options.containerCreationCode] - the jQuery string to use when creation the container for submenu clones. You can use "%i" (without quotes) in the string and it will be replaced with the index of the element the container is created for. Other matched forms in addition to "%i" are /%i(ndex)?%?/ig
+     * @return {jQuery object} - a jQuery collection of the created containers with submenu clones appended
      */
     $.fn.extractSubmenus = function(options) {
         //defaults
