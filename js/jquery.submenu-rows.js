@@ -6,33 +6,6 @@
     #container_submenus_{n}
 */
 
-
-
-/*
-- container id, class, advanced:jquery-creation-code
-menu selector : #nav.main_navigation
-
-submenu sub-selector : .sub-menu [ul]
-event type : onhover | onclick | (|both|) | none
-[hover-out delay] : 1000 (ms)
-
---
-aa_init_menu($(%%menu_selector), (|".sub-menu"|), (|both|), 1000ms)
-*/
-
-/*
-options:
-    submenu selector : string
-    event type : enum(hover|click|both|none)
-    hover delay : int
-    add depth classes : bool
-    complete : function(container)
-
-options:
-    ^ inherit above options
-    containerCreationCode : jquery string
-*/
-
 (function($) {
 
     /* Defaults */
@@ -57,7 +30,7 @@ options:
 
     /* Constants */
     var SUBMENU_ORIGINAL_CLASS = "smr_submenu_original";
-    var SUBMENU_CLONE_CONTAINER_CLASS = "smr_submenus"; //ends with an "s"
+    var SUBMENU_CLONE_CONTAINER_CLASS = "smr_submenus"; // plural; ends with an "s"
     var SUBMENU_CLONE_CLASS = "smr_submenu"; // singular
     var SHOWN_CLASS = "smr_shown";
     var SHOWN_BY_CLICK_CLASS = "smr_shown_by_click";
@@ -97,6 +70,29 @@ options:
 
     /* Actual functionality */
 
+
+    /**
+     * collectSubmenus
+     * Given a list of nodes, finds descendant nodes that statisfy the submenuSelector, makes clones of each submenu and then handles the clones. 
+     * The clones receive special classes. The user can specify classes to attach in addition to plugin-specific classe. Please see the options `submenuClass`, `shownClass` and `shownByClickClass`.
+     * Event listeners are attached according to the parameter (option) `eventType`.
+     * To gain better control, please use the callbacks options `onPrepare`, `onShow` and `onHide`. They allow to override default plugin behaviour or simply do additional things.
+     * 
+     * @param {node[]} sourceNodes - the list of nodes in which to look for submenus (elements that match the submenu selector). Can be a jQuery collection - if it is not, it will be turned into one.
+     * @param {object} [options] - options to use
+     * @param {string} [options.submenuSelector="ul"] - the submenu selector to look for in the given nodes. Defaults to a simple "ul"
+     * @param {click|hover|both|none} [eventType="both"] - the type of events to attach show/hide actions to. Use "hover" to show the submenus on hovering over the parent element (and on the submenu itself, but this is not relevant when it has not been shown in the first place). Use "click" to show submenus on clicking on the parent element. Use "both" to add both "hover" and "click" functionality. In this case, "click" events take precedence over "hover" events, meaning that if you click and then trigger "hover out", the submenu will stay open (until you "click" the parent again). Use "none" to not add any functionality. This is usefull if you want to attach your own events. You may want to read about the onShow and onHide callback functions (and "return false" in them). Default value is "both".
+     * @param {string} [options.submenuClass=""] - a list of classes (separated by space) which to add to the submenu clones created, in addition to the plugin-specific class. Defaults to "" (no classes added).
+     * @param {string} [options.shownClass=""] - a list of classes (separated by space) which to add to the submenu clones when they are shown (made visible), in addition to the plugin-specific class. Defaults to "" (no classes added).
+     * @param {string} [options.shownByClickClass=""] - a list of classes (separated by space) which to add to the submenu clones when they are shown (made visible) by clicking (not hover), in addition to the plugin-specific class. Defaults to "" (no classes added).
+     * @param {number} [options.hoverOutDelay=0] - an integer (>= 0) indicating how many miliseconds to delay the hoverOut event. Has no effect if options.eventType is not "hover" or "both". Defaults to 0 (zero). Note that the callback onHide is called after this delay, so it is affected.
+     * @param {number} [options.deepSubmenusHoverOutDelay=0] - same as `options.hoverOutDelay` but for the deep submenus. `options.hoverOutDelay` affects the events triggered by the actual menu, while this affects the events triggered by submenus of depth>1. Usefull when the submenu clones are next to each other, but the original menu is far from them (in which case, hoverOuts are very annoying).
+     * @param {boolean} [options.addDepthClasses=false] - a boolean indicating whether to add depth classes to submenu clones or not. Usefull when you want ot apply fancy styling. Off by default.
+     * @param {function(cloneContainer, originalNode)} [options.onPrepare] - a callback function that gets called once the submenu clones have been made, linked, marked, events have been attached, and clone nodes appened to the clone container. Use this if you want to move the submenu clones container elsewhere in the DOM, or simply do some other things, like assigning a custom id to the container.
+     * @param {function(event, target)} [onShow] - a callback function that gets called when an event that is supposed to show a submenu is triggered. "click-shown over hover-shown" is taken into account and only then is this callback called. An important feature of this callback is that you can return the value "false" and this will prevent the default "show" action done by the plugin. In other words, if you return "false", the script will NOT add "shown" classes (which is the default behaviour).
+     * @param {function(event, target)} [onHide] - a callback function that gets called when an event that is supposed to hide a submenu is triggered. "click-shown over hover-shown" and "hoverOutDelay" are taken into account and only then is this callback called. An important feature of this callback is that you can return the value "false" and this will prevent the default "hide" action done by the plugin. In other words, if you return "false", the script will NOT remove "shown" classes (which is the default behaviour).
+     * @return {jQuery collection} - the same collection the method was called on (so to allow chaining).
+     */
     $.fn.collectSubmenus = function(sourceNodes, options) {
         if (this.length === 0)
             return this;
@@ -252,6 +248,18 @@ options:
         });
     };
  
+    /**
+     * Given a jQuery collection, for each element, find all the elements that match the `submenuSelector`, make a clone of them and append the clone to a newly created container element.
+     * For details on the "cloning" part, please see $.fn.collectSubmenus .
+     * This function only creates containers for the clones and calls $.fn.collectSubmenus to do the actual work.
+     * A clone container will be created for each element in the jQuery collection.
+     *
+     * Please see $.fn.collectSubmenus !!!
+     * 
+     * @param  {object} [options] - Options to use. The object is passed to $.fn.collectSubmenus . So include all options you want to use there.
+     * @param  {jquery string} [options.containerCreationCode] - the jQuery string to use when creation the container for submenu clones
+     * @return {jquery object} - a jQuery collection of the created containers with submenu clones appended
+     */
     $.fn.extractSubmenus = function(options) {
         //defaults
         var settings = $.extend(EXTRACT_DEFAULT_OPTIONS, options);
@@ -266,7 +274,7 @@ options:
             var creationCode = settings.containerCreationCode;
             creationCode = creationCode.replace(/%i(ndex)?%?/ig, index);
 
-            //create
+            //create container
             var $container = $(creationCode);
             $container.addClass(SUBMENU_CLONE_CONTAINER_CLASS);
 
