@@ -40,6 +40,7 @@ options:
         submenuSelector: "ul",
         submenuClass: "",
         shownClass: "",
+        shownByClickClass: "",
         eventType: "both",
         hoverOutDelay: 0,
         deepSubmenusHoverOutDelay: 0,
@@ -59,9 +60,21 @@ options:
     var SUBMENU_CLONE_CONTAINER_CLASS = "smr_submenus"; //ends with an "s"
     var SUBMENU_CLONE_CLASS = "smr_submenu"; // singular
     var SHOWN_CLASS = "smr_shown";
-    var CLICK_SHOWN_CLASS = "smr_shown_by_click";
+    var SHOWN_BY_CLICK_CLASS = "smr_shown_by_click";
 
-    /* Helpers */
+    var _addDepthClasses = function($collection, submenuSelector) {
+        $collection.addClass('depth-1');
+        $collection.find(submenuSelector).each(function() {
+            var $this = $(this);
+            var depth = 1 + $this.parents(submenuSelector).length;
+            $this.addClass('depth-'+depth);
+        });
+    };
+
+
+    /* Global Helpers */
+
+    // global instance to wrap clone containers
     var _wrapper = false;
     var getSMRWrapper = function() {
         if (_wrapper)
@@ -78,16 +91,7 @@ options:
         return _wrapper;
     };
 
-    var _addDepthClasses = function($collection, submenuSelector) {
-        $collection.addClass('depth-1');
-        $collection.find(submenuSelector).each(function() {
-            var $this = $(this);
-            var depth = 1 + $this.parents(submenuSelector).length;
-            $this.addClass('depth-'+depth);
-        });
-    };
-
-    //:topmost pseudo selector
+    // :topmost pseudo selector
     $.extend(jQuery.expr[':'], {
         topmost: function (element, index, match, alreadyMatched) {
             for (var i = 0; i < alreadyMatched.length; i++) {
@@ -98,82 +102,6 @@ options:
             return true;
         }
     });
-
-
-    var showSubmenu = function(node, shownClass) {
-        $(node).addClass(SHOWN_CLASS).addClass(shownClass);
-    };
-    var hideSubmenu = function(node, shownClass) {
-        $(node).removeClass(SHOWN_CLASS).removeClass(shownClass);
-    };
-
-    var setClickShown = function(node, flag) {
-        if (flag) {
-            $(node).removeClass(CLICK_SHOWN_CLASS);
-        } else {
-            $(node).addClass(CLICK_SHOWN_CLASS);
-        }
-    }
-    var isClickShown = function(node) {
-        return $(node).hasClass(CLICK_SHOWN_CLASS);
-    }
-
-    var _attachEvents = function($triggers, target, settings, hoverOutDelay) {
-        if (typeof hoverOutDelay == "undefined")
-            hoverOutDelay = settings.hoverOutDelay;
-
-        // hover
-        if (settings.eventType == "hover" || settings.eventType == "both") {
-            var hoverTimeout = -1;
-
-            var hoverIn = function(event) {
-                clearTimeout(hoverTimeout);
-                hoverTimeout = -1;
-
-                if (settings.onShow(event, target) === false)
-                    return;
-
-                showSubmenu(target, settings.shownClass);
-            };
-            var hoverOut = function(event) {
-                var doHide = function() {
-                    if (isClickShown(target))
-                        return; //don't actually hide
-
-                    if (settings.onHide(event, target) === false)
-                        return;
-
-                    hideSubmenu(target, settings.shownClass);
-                };
-
-                hoverTimeout = setTimeout(doHide, hoverOutDelay);
-            };
-
-            $triggers.hover(hoverIn, hoverOut);
-            $(target).hover(hoverIn, hoverOut);
-        }
-
-        // click
-        if (settings.eventType == "click" || settings.eventType == "both") {
-            $triggers.click(function(event) {
-                if (isClickShown(target)) {
-                    setClickShown(target, false);
-
-                    if (settings.onHide(event, target) === false)
-                        return;
-
-                    hideSubmenu(target);
-                } else {
-                    setClickShown(target, true);
-
-                    if (settings.onHide(event, target) === false)
-                        return;
-
-                    showSubmenu(target);
-                }
-            });
-        }
-    };
 
 
     /* Actual functionality */
@@ -187,6 +115,87 @@ options:
 
         //shorthands
         var submenuSelector = settings.submenuSelector;
+
+
+        // Helpers (recommended to fold the code)
+        var helpers = {
+            showSubmenu: function(node) {
+                $(node).addClass(SHOWN_CLASS).addClass(settings.shownClass);
+            },
+            hideSubmenu: function(node) {
+                $(node).removeClass(SHOWN_CLASS).removeClass(settings.shownClass);
+            },
+
+            setClickShown: function(node, flag) {
+                if (flag) {
+                    $(node).addClass(SHOWN_BY_CLICK_CLASS).addClass(settings.shownByClickClass);
+                } else {
+                    $(node).removeClass(SHOWN_BY_CLICK_CLASS).removeClass(settings.shownByClickClass);
+                }
+            },
+            isClickShown: function(node) {
+                return $(node).hasClass(SHOWN_BY_CLICK_CLASS);
+            },
+
+            _attachEvents: function($triggers, target, hoverOutDelay) {
+                // prepare things
+                var helpers = this;
+
+                if (typeof hoverOutDelay == "undefined")
+                    hoverOutDelay = settings.hoverOutDelay;
+
+
+                // hover events
+                if (settings.eventType == "hover" || settings.eventType == "both") {
+                    var hoverTimeout = -1;
+
+                    var hoverIn = function(event) {
+                        clearTimeout(hoverTimeout);
+                        hoverTimeout = -1;
+
+                        if (settings.onShow(event, target) === false)
+                            return;
+
+                        helpers.showSubmenu(target);
+                    };
+                    var hoverOut = function(event) {
+                        hoverTimeout = setTimeout(function() {
+                            if (helpers.isClickShown(target))
+                                return; //don't actually hide
+
+                            if (settings.onHide(event, target) === false)
+                                return;
+
+                            helpers.hideSubmenu(target);
+                        }, hoverOutDelay);
+                    };
+
+                    $triggers.hover(hoverIn, hoverOut);
+                    $(target).hover(hoverIn, hoverOut);
+                }
+
+                // click
+                if (settings.eventType == "click" || settings.eventType == "both") {
+                    $triggers.click(function(event) {
+                        if (helpers.isClickShown(target)) {
+                            helpers.setClickShown(target, false);
+
+                            if (settings.onHide(event, target) === false)
+                                return;
+
+                            helpers.hideSubmenu(target);
+                        } else {
+                            helpers.setClickShown(target, true);
+
+                            if (settings.onShow(event, target) === false)
+                                return;
+
+                            helpers.showSubmenu(target);
+                        }
+                    });
+                }
+            }
+        }; //end of helpers
 
 
         //work
@@ -214,14 +223,14 @@ options:
                 $submenusClone[index].smr_original = element;
 
                 // Attach Event Listeners
-                _attachEvents($(element).parent(), target, settings);
+                helpers._attachEvents($(element).parent(), target);
             });
             
             // Attach events on deeper submenus
             $deepSubmenus = $submenusClone.find(submenuSelector);
 
             $deepSubmenus.each(function(index, element) {
-                _attachEvents($(element).parent(), element, settings, settings.deepSubmenusHoverOutDelay);
+                helpers._attachEvents($(element).parent(), element, settings.deepSubmenusHoverOutDelay);
             });
 
 
@@ -246,6 +255,8 @@ options:
     $.fn.extractSubmenus = function(options) {
         //defaults
         var settings = $.extend(EXTRACT_DEFAULT_OPTIONS, options);
+
+        //helpers
 
         //vars
         var $root = getSMRWrapper();
