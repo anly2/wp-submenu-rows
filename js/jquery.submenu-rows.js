@@ -62,15 +62,6 @@ options:
     var SHOWN_CLASS = "smr_shown";
     var SHOWN_BY_CLICK_CLASS = "smr_shown_by_click";
 
-    var _addDepthClasses = function($collection, submenuSelector) {
-        $collection.addClass('depth-1');
-        $collection.find(submenuSelector).each(function() {
-            var $this = $(this);
-            var depth = 1 + $this.parents(submenuSelector).length;
-            $this.addClass('depth-'+depth);
-        });
-    };
-
 
     /* Global Helpers */
 
@@ -194,6 +185,15 @@ options:
                         }
                     });
                 }
+            },
+
+            _addDepthClasses: function($collection) {
+                $collection.addClass('depth-1');
+                $collection.find(submenuSelector).each(function() {
+                    var $this = $(this);
+                    var depth = 1 + $this.parents(submenuSelector).length;
+                    $this.addClass('depth-'+depth);
+                });
             }
         }; //end of helpers
 
@@ -240,7 +240,7 @@ options:
             $deepSubmenus.addClass(SUBMENU_CLONE_CLASS).addClass(settings.submenuClass);
 
             if (settings.addDepthClasses) {
-                _addDepthClasses($submenusClone, submenuSelector);
+                helpers._addDepthClasses($submenusClone);
             }
 
 
@@ -255,8 +255,6 @@ options:
     $.fn.extractSubmenus = function(options) {
         //defaults
         var settings = $.extend(EXTRACT_DEFAULT_OPTIONS, options);
-
-        //helpers
 
         //vars
         var $root = getSMRWrapper();
