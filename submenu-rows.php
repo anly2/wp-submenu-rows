@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Submenu Rows
-Plugin URI:  http://github.com/anly2/submenu-rows
+Plugin URI:  http://github.com/anly2/wp-submenu-rows
 Description: A plugin that allows submenus of navigation menus to be displayed as rows which span (usually) the whole width of a page. Each sub level becomes its own row and DOM structure is preserved.
 Version:     0.1.1
 Author:      Anko Anchev
