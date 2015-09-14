@@ -43,10 +43,15 @@ if (defined('ABSPATH'))
  */
 class WPSubmenuRows {
     protected $plugin_name = "submenu-rows";
+    protected $text_domain = "submenu-rows";
     protected $settings_page = "submenu-rows-settings";
     protected $settings_group = "smr_settings";
-    protected $settings_default = array();
-    protected $text_domain = "submenu-rows";
+    protected $settings_default = array(
+        "usage_mode" => "no_script",
+        "menu_selector" => "nav ul:topmost",
+        "submenu_selector" => "ul",
+        "event_type" => "both"
+    ); //the rest are empty
     
     protected $dir;
     protected $options;
@@ -106,35 +111,158 @@ class WPSubmenuRows {
     }
 
     public function settings_registration() {
-        $options_group = "smr_settings";
+        /* Top level settings group */
+        register_setting($this->settings_page, $this->settings_group);
 
-        register_setting($this->settings_page, $options_group);
-
-        add_settings_section("all", $this->__("All Settings"), null, $this->settings_page);
+        /* Sections */
+        add_settings_section("general", $this->__("General Settings"), null, $this->settings_page);
+        add_settings_section("generated_script", $this->__("Generated script Settings"), function(){ echo '<a name="section_generated_script"></a>'; }, $this->settings_page);
+        add_settings_section("custom_script", $this->__("Custom script Settings"), function(){ echo '<a name="section_custom_script"></a>'; }, $this->settings_page);
+        add_settings_section("no_script", $this->__("No script Settings"), function(){ echo '<a name="section_no_script"></a>'; }, $this->settings_page);
         
 
-        // Fields
+        /* Fields */
 
-        $field_name = "tt0";
+        //usage mode
+        $field_name = "usage_mode";
         add_settings_field(
-            $field_name, $this->__("Twitter Profile Url"),
-            function() use ($options_group, $field_name) {
-                ?> <input type="text" name="<?php echo $options_group."[$field_name]"; ?>" id="smr_field_<?php echo $field_name; ?>" value="<?php echo $this->options[$field_name]; ?>" /> <?php
-            },
-            $this->settings_page, "all");
+            $field_name, $this->__("Usage Mode:"),
+            function() use ($field_name) { ?> 
+                <label>
+                    <input type="radio" name="<?php echo $this->settings_group."[$field_name]"; ?>" value="generated_script" <?php checked($this->options[$field_name], "generated_script"); ?> />
+                    <span title="<?php $this->_e("Check to show the options"); ?>"><?php $this->_e("Include generated script"); ?></span>
+                </label>
+                <label>
+                    <input type="radio" name="<?php echo $this->settings_group."[$field_name]"; ?>" value="custom_script" <?php checked($this->options[$field_name], "custom_script"); ?> />
+                    <span title="<?php $this->_e("Check to show a textarea input"); ?>"><?php $this->_e("Include custom script"); ?></span>
+                </label>
+                <label>
+                    <input type="radio" name="<?php echo $this->settings_group."[$field_name]"; ?>" value="no_script" <?php checked($this->options[$field_name], "no_script"); ?> />
+                    <?php $this->_e("Do not include a script"); ?>
+                </label>
+            <?php },
+            $this->settings_page, "general");
 
+        //generated_script?  menu selector
+        $field_name = "menu_selector";
+        add_settings_field(
+            $field_name, $this->__("Menu Selector"),
+            function() use ($field_name) { ?>
+                <input type="text" name="<?php echo $this->settings_group."[$field_name]"; ?>" id="smr_field_<?php echo $field_name; ?>" value="<?php echo $this->options[$field_name]; ?>" />
+                <div class="instruction">jQuery Selector for the affected menus (top level)</div>
+                <div class="instruction">You can use the pseudo selector <code>:topmost</code> here</div>
+            <?php },
+            $this->settings_page, "generated_script");
+        
+        //generated_script?  submenu selector
+        $field_name = "submenu_selector";
+        add_settings_field(
+            $field_name, $this->__("Submenu Selector"),
+            function() use ($field_name) { ?>
+                <input type="text" name="<?php echo $this->settings_group."[$field_name]"; ?>" id="smr_field_<?php echo $field_name; ?>" value="<?php echo $this->options[$field_name]; ?>" />
+                <div class="instruction">jQuery Selector for the submenus (<code>ul</code> should be enough)</div>
+            <?php },
+            $this->settings_page, "generated_script");
+        
+        //generated_script?  event type
+        $field_name = "event_type";
+        add_settings_field(
+            $field_name, $this->__("Event Type"),
+            function() use ($field_name) {
+                $event_types = array("hover", "click", "both", "none");
+                foreach ($event_types as $event_type): ?>
+                    <label>
+                        <input type="radio" name="<?php echo $this->settings_group."[$field_name]"; ?>" value="<?php echo $event_type; ?>" <?php checked($this->options[$field_name], $event_type); ?> />
+                        <?php $this->_e(ucfirst($event_type)); ?>
+                    </label>
+                <?php endforeach; ?>
+                <div class="instruction">Select the events that should reveal (show) the correspoding submenu.</div>
+                <div class="instruction">If <code>both</code> is selected, a click event will "lock" the submenu so that subsequent hover-out events will not hide it (until another click event hides it)</div>
+            <?php },
+            $this->settings_page, "generated_script");
+        
+        //custom_script?   custom script
+        $field_name = "custom_script";
+        add_settings_field(
+            $field_name, $this->__("Custom Script"),
+            function() use ($field_name) { ?>
+                <textarea name="<?php echo $this->settings_group."[$field_name]"; ?>" id="smr_field_<?php echo $field_name; ?>" style="width: 40em; height: 15em; "><?php echo $this->options[$field_name]; ?></textarea>
+                <div class="instruction">This will be wrapped in a &lt;script&gt; tag for you, so do not write it here.</div>
+                <div class="instruction">Remember that you can use the pseudo selector <code>$(":topmost")</code> (in jQuery selectors).</div>
+            <?php },
+            $this->settings_page, "custom_script");
+        
+        //no_script?   usage explanation
+        $field_name = "usage_explanation";
+        add_settings_field(
+            $field_name, $this->__("Usage Explanation"),
+            function() use ($field_name) {
+                ?>
+                <div id="smr_field_<?php echo $field_name; ?>" class="info"><?php /*eat whitespaces*/ ?>
+                    <b>No javascript will be called by the plugin!</b>
+                    <p>
+                    You are free to manually call the plugin on the client side (using javascript).
+                    Everything the plugin does is done there. The back-end things are just for convenience.
+                    </p>
+                    <p>
+                    <?php $jsfile = $this->dir."js/jquery.submenu-rows.js"; ?>
+                    Make sure the file <a href="<?php echo $jsfile; ?>" target="_BLANK">"submenu-rows/js/jquery.submenu-rows.js"</a> is included. (It should be already)
+                    Then call either <code>$(menu).extractSubmenus({options})</code> or <code>$(dest).collectSubmenus(menu, {options})</code> - whichever is more appropriate.
+                    </p>
+                    <p>
+                    You can check the documentation for the two functions and the options they accept in the jsdoc comments in <a href="<?php echo $jsfile; ?>" target="_BLANK">the above-mentioned file</a>.
+                    </p>
+                </div>
+                <?php
+            },
+            $this->settings_page, "no_script");
     }
 
     public function settings_page_output() {
         ?>
         <div class="wrap">
-        <h2><?php $this->_e("Submenu Rows"); ?></h2>
+            <h2><?php $this->_e("Submenu Rows"); ?></h2>
 
-        <form method="post" action="options.php">
-            <?php settings_fields($this->settings_page); ?>
-            <?php do_settings_sections($this->settings_page); ?>
-            <?php submit_button(); ?>
-        </form>
+            <style>
+            form#smr_settings label { margin-right: 3em; }
+            form#smr_settings .info { max-width: 50em; }
+            form#smr_settings .info p { white-space: pre-line; }
+            form#smr_settings .instruction { margin-top: 10px; }
+            form#smr_settings .instruction+.instruction { margin-top: 5px; }
+            form#smr_settings .instruction+:not(.instruction),
+            form#smr_settings .instruction:last-child { margin-bottom: 10px; }
+            </style>
+
+            <form id="smr_settings" method="post" action="options.php">
+                <?php settings_fields($this->settings_page); ?>
+                <?php do_settings_sections($this->settings_page); ?>
+                <?php submit_button(); ?>
+            </form>
+
+            <script type="text/javascript">
+            (function($) {
+                var $shown = 
+                $('form#smr_settings [name="<?php echo $this->settings_group; ?>[usage_mode]"]').each(function(index, element) {
+                    var $sectionAnchor = $('form#smr_settings [name="section_'+element.value+'"]');
+                    var $section = $().add($sectionAnchor.prev("h3")).add($sectionAnchor).add($sectionAnchor.next("table"));
+
+                    if (element.checked) {
+                        $shownSection = $section;
+                    } else {
+                        $section.css('display', 'none');
+                    }
+
+                    $(element).change(function() {
+                        if (element.checked) {
+                            $shownSection.css("display", "none");
+                            $section.fadeIn();
+                            $shownSection = $section;
+                        } else
+                            $section.fadeOut();
+                    });
+                });
+            }(jQuery));
+            </script>
         </div>
         <?php
     }
@@ -150,10 +278,35 @@ class WPSubmenuRows {
         wp_enqueue_script("submenu_rows", $this->dir . "js/jquery.submenu-rows.js", array("jquery"), false, true);
         wp_enqueue_style("submenu_rows", $this->dir . "css/style.css");
 
-        if ($this->options['auto_enqueue_script']) {
-            wp_enqueue_script("submenu_rows_dynamic", $this->dir . "js/dynamic-script.php", array("submenu_rows"), false, true );
+        if ($this->options['usage_mode'] != 'no_script') {
+            add_action('wp_footer', array($this, 'dynamic_script'));
+        }
+    }
+
+    public function dynamic_script() {
+        switch($this->options["usage_mode"]) {
+            case "generated_script": ?>
+                <script type="text/javascript">
+                (function($) {
+                    $("<?php echo $this->options['menu_selector']; ?>").extractSubmenus({
+                        submenuSelector: "<?php echo $this->options['menu_selector']; ?>",
+                        eventType: "<?php echo $this->options['submenu_selector']; ?>"
+                    })
+                }(jQuery));
+                </script>
+                <?php break;
+
+            case "custom_script": ?>
+                <script type="text/javascript">
+                <?php echo $this->options["custom_script"]; ?>
+                </script>
+                <?php break;
+
+            case "no_script":
+                return;
+            default:
+                return;
         }
     }
 }
-
 ?>
