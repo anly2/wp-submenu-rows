@@ -42,18 +42,18 @@ if (defined('ABSPATH'))
  * 
  */
 class WPSubmenuRows {
-    private $plugin_name = "submenu-rows";
+    protected $plugin_name = "submenu-rows";
+    protected $settings_page = "submenu-rows-settings";
+    protected $settings_group = "smr_settings";
+    protected $settings_default = array();
+    protected $text_domain = "submenu-rows";
+    
     protected $dir;
-    protected $plugin_slug;
-    protected $text_domain;
-    protected $settings_slug;
     protected $options;
 
     public function __construct() {
         $this->dir = plugin_dir_url( __FILE__ );
-        $this->plugin_slug = plugin_basename(__FILE__);
-        $this->text_domain = $this->plugin_name;
-        $this->settings_slug = $this->plugin_name.'-settings';
+        $this->options = get_option($this->settings_group, $this->settings_default);
 
         load_plugin_textdomain($this->text_domain, false, basename(dirname(__FILE__)).'/languages');
 
@@ -85,7 +85,7 @@ class WPSubmenuRows {
                 $this->__("Submenu-Rows Settings"),
                 $this->__("Submenu-Rows"),
                 'manage_options',
-                $this->settings_slug,
+                $this->settings_page,
                 array($this, 'settings_page_output')
             );
         });
@@ -94,9 +94,9 @@ class WPSubmenuRows {
 
 
         // Add a link to the Plugins list page
-        add_filter("plugin_action_links_".$this->plugin_slug,
+        add_filter("plugin_action_links_".plugin_basename(__FILE__),
             function($links) {
-                $settings_url = "options-general.php?page=".$this->settings_slug;
+                $settings_url = "options-general.php?page=".$this->settings_page;
                 $link_html = "<a href=\"$settings_url\">".$this->__("Settings")."</a>";
 
                 array_unshift($links, $link_html);
@@ -106,13 +106,23 @@ class WPSubmenuRows {
     }
 
     public function settings_registration() {
-        add_settings_section("section", $this->__("All Settings"), null, $this->settings_slug);
-        
-        add_settings_field("submenurows_tt0", $this->__("Twitter Profile Url"), function(){
-            ?><input type="text" name="submenurows_tt0" id="submenurows_tt0" value="<?php echo get_option('submenurows_tt0'); ?>" /><?php
-        }, $this->settings_slug, "section");
+        $options_group = "smr_settings";
 
-        register_setting("section", "submenurows_tt0");
+        register_setting($this->settings_page, $options_group);
+
+        add_settings_section("all", $this->__("All Settings"), null, $this->settings_page);
+        
+
+        // Fields
+
+        $field_name = "tt0";
+        add_settings_field(
+            $field_name, $this->__("Twitter Profile Url"),
+            function() use ($options_group, $field_name) {
+                ?> <input type="text" name="<?php echo $options_group."[$field_name]"; ?>" id="smr_field_<?php echo $field_name; ?>" value="<?php echo $this->options[$field_name]; ?>" /> <?php
+            },
+            $this->settings_page, "all");
+
     }
 
     public function settings_page_output() {
@@ -121,8 +131,8 @@ class WPSubmenuRows {
         <h2><?php $this->_e("Submenu Rows"); ?></h2>
 
         <form method="post" action="options.php">
-            <?php settings_fields($this->settings_slug); ?>
-            <?php do_settings_sections($this->settings_slug); ?>
+            <?php settings_fields($this->settings_page); ?>
+            <?php do_settings_sections($this->settings_page); ?>
             <?php submit_button(); ?>
         </form>
         </div>
@@ -145,4 +155,5 @@ class WPSubmenuRows {
         }
     }
 }
+
 ?>
