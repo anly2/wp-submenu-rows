@@ -115,10 +115,11 @@ class WPSubmenuRows {
         register_setting($this->settings_page, $this->settings_group);
 
         /* Sections */
-        add_settings_section("general", $this->__("General Settings"), null, $this->settings_page);
-        add_settings_section("generated_script", $this->__("Generated script Settings"), function(){ echo '<a name="section_generated_script"></a>'; }, $this->settings_page);
-        add_settings_section("custom_script", $this->__("Custom script Settings"), function(){ echo '<a name="section_custom_script"></a>'; }, $this->settings_page);
-        add_settings_section("no_script", $this->__("No script Settings"), function(){ echo '<a name="section_no_script"></a>'; }, $this->settings_page);
+        $get_section_cb = function($section_slug) { return function() use ($section_slug) { echo '<a name="section_'.$section_slug.'"></a>'; }; };
+        add_settings_section("general", $this->__("General Settings"), $get_section_cb("general"), $this->settings_page);
+        add_settings_section("generated_script", $this->__("Generated script Settings"), $get_section_cb("generated_script"), $this->settings_page);
+        add_settings_section("custom_script", $this->__("Custom script Settings"), $get_section_cb("custom_script"), $this->settings_page);
+        add_settings_section("no_script", $this->__("No script Settings"), $get_section_cb("no_script"), $this->settings_page);
         
 
         /* Fields */
@@ -128,6 +129,7 @@ class WPSubmenuRows {
         add_settings_field(
             $field_name, $this->__("Usage Mode:"),
             function() use ($field_name) { ?> 
+                <a name="section_general_usage_mode"></a>
                 <label>
                     <input type="radio" name="<?php echo $this->settings_group."[$field_name]"; ?>" value="generated_script" <?php checked($this->options[$field_name], "generated_script"); ?> />
                     <span title="<?php $this->_e("Check to show the options"); ?>"><?php $this->_e("Include generated script"); ?></span>
@@ -178,6 +180,7 @@ class WPSubmenuRows {
                 <?php endforeach; ?>
                 <div class="instruction">Select the events that should reveal (show) the correspoding submenu.</div>
                 <div class="instruction">If <code>both</code> is selected, a click event will "lock" the submenu so that subsequent hover-out events will not hide it (until another click event hides it)</div>
+                <div class="instruction">If <code>none</code> is selected, no event listeners will be added and you will have to do that manually. It is very likely that you will be better off using a custom script. (See "<a href="#section_general_usage_mode">Usage Mode</a>")</div>
             <?php },
             $this->settings_page, "generated_script");
         
